@@ -1,5 +1,7 @@
 # arborium
 
+https://arborium-forum.web.app
+
 Source code for the client and server server side
 
 To initialize, start with a Routify.dev template
@@ -28,7 +30,7 @@ security rules are probably flawed
 
 Once again this is probabely poor work, first time attempt at coding a website, and might never grow more than just an example for real developers to pursue the idea.. So fork at will, make it decent, make money, whatever..
 
-and no need to hack the github account...
+and no need to hack the github account (even though it is the best compliment I could receive ;-)...
 
 
 Questions welcome to arborium.forum@gmail.com
