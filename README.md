@@ -19,7 +19,7 @@ The format of a tree document is basically a compressed version of a JSON file o
  
 Every time someone votes on a message, there are several things that have to be done:
  - the user's document in the DB needs to be updated with the new vote
- - the message itself need to have its vote counter updated
+ - the message itself needs to have its vote counter updated
  - the tree document must received the new message if the vote corresponds to a new message
  - the skimmed tree document must receive the same input, and be recomputed in case the new vote triggers that message (and possibly the whole subsequent branch) to be removed from the skimmed tree
 
