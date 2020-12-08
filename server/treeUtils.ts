@@ -208,8 +208,8 @@ const attach: any = (formatedMessages: any, tree: any) => {
 			tree[m].n = message.n
 			tree[m].a = message.a
 			tree[m].u = message.u
-			if(tree[m].an)tree[m].an = message.an
-			if(tree[m].qp)tree[m].qp = message.qp
+			if(message.an)tree[m].an = message.an
+			if(message.qp)tree[m].qp = message.qp
 		} else tree[m] = message
 	}
 	for (const m of Object.keys(formatedMessages)) {
