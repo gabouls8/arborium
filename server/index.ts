@@ -16,12 +16,64 @@ admin.initializeApp()
 const db = admin.firestore()
 db.settings({ ignoreUndefinedProperties: true })
 
+exports.handleRoles = functions
+	.region("europe-west1")
+	.firestore.document("messages/{message}/roles/{role}")
+	.onWrite(async (change, context) => {
+		try {
+			const roleAfter: any = change.after.data()
+			if(!roleAfter)return null
+			// console.log(roleBefore)
+			// console.log("----------------------------------------")
+			//console.log(roleAfter)
+			// console.log(newEntries)
+			if (roleAfter.firstAdmin) {
+				const firstAdminId: any = roleAfter.admins[0]
+				// console.log("firstTime")
+				const res: any = await db.collection("users").doc(firstAdminId).get()
+				return change.after.ref.set(
+					{ emails: { [firstAdminId]: res.data().email }, firstAdmin: admin.firestore.FieldValue.delete() },
+					{ merge: true }
+				)
+			} else if (roleAfter.newViewers) {
+				// console.log("newViewers")
+				const promiseUsers: any = []
+				roleAfter.newViewers.forEach((nv: any) => {
+					promiseUsers.push(db.collection("users").where("email", "==", nv).get())
+				})
+				const res: any = await Promise.all(promiseUsers)
+				// console.log(res)
+				res.forEach((ud: any, i: any) => {
+					if (ud.empty) {
+						// console.log("empty")
+					} else {
+						// console.log(ud.docs[0].id)
+						// console.log(roleAfter.users[newEntries[i]])
+
+						roleAfter.viewers.push(ud.docs[0].id)
+						// console.log(roleAfter.viewers)
+						roleAfter.emails[ud.docs[0].id] = roleAfter.newViewers[i]
+						// console.log(roleAfter.emails)
+					}
+				})
+				delete roleAfter.newViewers
+				// console.log(roleAfter)
+				return change.after.ref.set({ ...roleAfter })
+			}
+			return null
+		} catch (error) {
+			console.log(error)
+			throw new Error(error)
+		}
+	})
+
 exports.initMessage = functions
 	.region("europe-west1")
 	.firestore.document("messages/{message}")
 	.onCreate(async (snap, context) => {
 		try {
 			const message = snap.data()
+			// console.log(message)
 			const messageId: string = snap.id
 			const userRef = db.collection("users").doc(message.user)
 			const voteTempRef = userRef.collection("votesTemp")
@@ -59,6 +111,15 @@ exports.initMessage = functions
 			if (subject === "itself") {
 				subject = snap.id
 				const update: any = { subject, user: admin.firestore.FieldValue.delete() }
+				if (!message.public) {
+					promise.push(
+						snap.ref
+							.collection("roles")
+							.doc(subject)
+							.set({ admins: [message.user], viewers: [message.user], emails: {}, firstAdmin: true, title: message.title,date:message.date })
+							.catch(e => console.log(e))
+					)
+				}
 				if (message.answers)
 					update.answers = message.answers.map((a: any, i: any) => {
 						return { ...a, id: answers[i].id }
@@ -147,7 +208,7 @@ exports.scheduled = functions
 					await Promise.all(promise)
 					return null
 				} catch (error) {
-					 console.log(error)
+					console.log(error)
 					throw new Error(error)
 				}
 			}
@@ -166,53 +227,51 @@ exports.scheduled = functions
 		}
 	})
 
-exports.handtriggeredtrees = functions.region("europe-west1").https.onRequest(async (req, res) => {
-	try {
-		const votes = require("./votes")
-		const manageSubject: any = async (vtGroupedBySubject: any) => {
-			try {
-				const subject = vtGroupedBySubject[0].subject
-				if (subject === "itself") {
-					return null
-				}
-				const seed: any = vtGroupedBySubject.find((d: any) => d.subject === d.message)
-				console.log("found seed")
-				const treedata: any = await db.collection("tree").doc(subject).get()
-				if (!seed && !treedata.data()) {
-					return null
-				}
-				const { users, votesTempCopy } = await votes.getSortAndDeleteObsoletes(vtGroupedBySubject, db)
-				await votes.getAndUpdateUsersAndDeleteLastVotesTemp(users, votesTempCopy, db)
-				if (!votesTempCopy.updates) {
-					return null
-				}
-				const messagesUpdates = await votes.getMessagesAndTitles(votesTempCopy, db)
-				const promise = [
-					votes.updateMessages(messagesUpdates, db),
-					votes.updateOrCreateTree(messagesUpdates, db, subject, treedata.data()),
-				]
-				await Promise.all(promise)
-				return null
-			} catch (error) {
-				console.log(error)
-				throw new Error(error)
-			}
-		}
-
-		const parallel: any = []
-		const data = await db.collectionGroup("votesTemp").orderBy("user").orderBy("message").orderBy("date", "desc").get()
-		const groupedBySubject = groupBySubject(data)
-		for (const subject of Object.keys(groupedBySubject)) {
-			parallel.push(manageSubject(groupedBySubject[subject]))
-		}
-		await Promise.all(parallel)
-		res.send("ok")
-	} catch (error) {
-		console.log(error)
-		res.send(error)
-	}
-})
-
+// exports.handtriggeredtrees = functions.region("europe-west1").https.onRequest(async (req, res) => {
+// 	try {
+// 		const votes = require("./votes")
+// 		const manageSubject: any = async (vtGroupedBySubject: any) => {
+// 			try {
+// 				const subject = vtGroupedBySubject[0].subject
+// 				if (subject === "itself") {
+// 					return null
+// 				}
+// 				const seed: any = vtGroupedBySubject.find((d: any) => d.subject === d.message)
+// 				console.log("found seed")
+// 				const treedata: any = await db.collection("tree").doc(subject).get()
+// 				if (!seed && !treedata.data()) {
+// 					return null
+// 				}
+// 				const { users, votesTempCopy } = await votes.getSortAndDeleteObsoletes(vtGroupedBySubject, db)
+// 				await votes.getAndUpdateUsersAndDeleteLastVotesTemp(users, votesTempCopy, db)
+// 				if (!votesTempCopy.updates) {
+// 					return null
+// 				}
+// 				const messagesUpdates = await votes.getMessagesAndTitles(votesTempCopy, db)
+// 				const promise = [
+// 					votes.updateMessages(messagesUpdates, db),
+// 					votes.updateOrCreateTree(messagesUpdates, db, subject, treedata.data()),
+// 				]
+// 				await Promise.all(promise)
+// 				return null
+// 			} catch (error) {
+// 				console.log(error)
+// 				throw new Error(error)
+// 			}
+// 		}
+// 		const parallel: any = []
+// 		const data = await db.collectionGroup("votesTemp").orderBy("user").orderBy("message").orderBy("date", "desc").get()
+// 		const groupedBySubject = groupBySubject(data)
+// 		for (const subject of Object.keys(groupedBySubject)) {
+// 			parallel.push(manageSubject(groupedBySubject[subject]))
+// 		}
+// 		await Promise.all(parallel)
+// 		res.send("ok")
+// 	} catch (error) {
+// 		console.log(error)
+// 		res.send(error)
+// 	}
+// })
 
 // exports.rebuildAllTrees = functions.region("europe-west1").https.onRequest(async (req, res) => {
 // 	try {
