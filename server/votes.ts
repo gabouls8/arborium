@@ -88,8 +88,7 @@ const getAndUpdateUsersAndDeleteLastVotesTemp: any = async (users: any, votesTem
 				if (!currentAnswers[v.user].answers || !currentAnswers[v.user].answers[v.message]) {
 					v.answers[v.vote] = 1
 					votesTempCopy.updates = true
-				}
-				else if (
+				} else if (
 					currentAnswers[v.user].answers[v.message].vote !== v.vote &&
 					(currentAnswers[v.user].answers[v.message].date._seconds < v.date._seconds ||
 						(currentAnswers[v.user].answers[v.message].date._seconds === v.date._seconds &&
@@ -106,7 +105,7 @@ const getAndUpdateUsersAndDeleteLastVotesTemp: any = async (users: any, votesTem
 					currentAnswers[v.user].answers = { [v.message]: { vote: v.vote, date: v.date } }
 					v.new = true
 				} else {
-					if(!currentAnswers[v.user].answers[v.message]) v.new=true
+					if (!currentAnswers[v.user].answers[v.message]) v.new = true
 					currentAnswers[v.user].answers[v.message] = { vote: v.vote, date: v.date }
 				}
 			}
@@ -133,9 +132,9 @@ const getMessagesAndTitles: any = async (votesTempCopy: any, db: any) => {
 			if (!messagesUpdates[v.message]) messagesUpdates[v.message] = { life: 0, block: 0 }
 			messagesUpdates[v.message].life += v.life ? v.life : 0
 			messagesUpdates[v.message].block += v.block ? v.block : 0
-
 			if (v.new && !messagesUpdates[v.message].questionsParticipation) messagesUpdates[v.message].questionsParticipation = 1
 			else if (v.new) messagesUpdates[v.message].questionsParticipation += 1
+			//console.log(messagesUpdates[v.message])
 
 			if (v.answers && !messagesUpdates[v.message].answers)
 				messagesUpdates[v.message].answers = Object.keys(v.answers).map((a: any) => ({ id: a, answered: v.answers[a] }))
@@ -173,7 +172,7 @@ const getMessagesAndTitles: any = async (votesTempCopy: any, db: any) => {
 							messagesUpdates[m].unanimite = Math.abs(messagesUpdates[m].approbation - 50) * 2
 							messagesUpdates[m].title = messageDoc.title
 							messagesUpdates[m].parent = messageDoc.parent
-							if(messageDoc.connect)messagesUpdates[m].connect=messageDoc.connect
+							if (messageDoc.connect) messagesUpdates[m].connect = messageDoc.connect
 							messagesUpdates[m].rank = messageDoc.rank
 							messagesUpdates[m].id = data.id
 							messagesUpdates[m].type = messageDoc.type
@@ -184,7 +183,7 @@ const getMessagesAndTitles: any = async (votesTempCopy: any, db: any) => {
 											if (answer) {
 												if (a.answered) a.answered += answer.answered
 												else a.answered = answer.answered
-											} 
+											}
 											return a
 									  })
 									: messageDoc.answers
@@ -197,6 +196,7 @@ const getMessagesAndTitles: any = async (votesTempCopy: any, db: any) => {
 											: messagesUpdates[m].questionsParticipation
 										: messageDoc.questionsParticipation
 									: undefined
+							//console.log(messagesUpdates[m])
 						} catch (e) {
 							console.log(e)
 						}
@@ -215,6 +215,7 @@ const updateMessages: any = async (messagesUpdates: any, db: any) => {
 	try {
 		const promiseUpdates: any = []
 		for (const m of Object.keys(messagesUpdates)) {
+			//console.log("updating : ", m)
 			promiseUpdates.push(
 				db.collection("messages").doc(m).set(
 					{
@@ -252,13 +253,15 @@ const updateOrCreateTree: any = async (messagesUpdates: any, db: any, subject: s
 			formatedMessages[m].t = messagesUpdates[m].title
 			if (messagesUpdates[m].parent !== "none") formatedMessages[m].p = messagesUpdates[m].parent
 			if (messagesUpdates[m].connect) formatedMessages[m].co = messagesUpdates[m].connect
+			if (messagesUpdates[m].questionsParticipation) formatedMessages[m].qp = messagesUpdates[m].questionsParticipation
 			formatedMessages[m].r = messagesUpdates[m].rank
 			formatedMessages[m].id = messagesUpdates[m].id
 			formatedMessages[m].ty = shortenType(messagesUpdates[m].type)
-			formatedMessages[m].qp = messagesUpdates[m].questionsParticipation ? messagesUpdates[m].questionsParticipation : 0
-			if(messagesUpdates[m].answers)formatedMessages[m].an = messagesUpdates[m].answers.map((a:any)=>{
-				return {id:a.id,a:a.answered}
-			})
+			//formatedMessages[m].qp = messagesUpdates[m].questionsParticipation ? messagesUpdates[m].questionsParticipation : 0
+			if (messagesUpdates[m].answers)
+				formatedMessages[m].an = messagesUpdates[m].answers.map((a: any) => {
+					return { id: a.id, a: a.answered }
+				})
 			//console.log(formatedMessages[m])
 		}
 		await treeUtils.createOrUpdateTree(formatedMessages, db, subject, tree, questionsObjIncrement)
